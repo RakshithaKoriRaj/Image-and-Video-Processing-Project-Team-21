@@ -1,22 +1,21 @@
 '''
-    This script takes files from both datasets and merges them
-    together in the merged-dataset folder
-
-    It also takes the files from the covid-chestxray-dataset-master
-    dataset and filters out the ones that are acutal covid-19
-    patients and not for other diseases (I think)
+    This script takes files from the merged-dataset folder
+    and sets their means to the 
 '''
 
 import os
 import shutil
+import Names
+import Helper
 
 BLACKLIST = [
     83,  # Side profile
+    86,  # ...
     89,  # ...
     91,  # ...
-    102, # ..
+    102, # ...
     111, # ...
-    113,
+    113, # ...
 ]
 
 def copy_and_filter_dataset(src, target):
@@ -51,22 +50,19 @@ def remove_blacklist(src, target):
 
 dir1 = os.path.abspath(os.getcwd()) + "\\covid-chestxray-dataset-master\\images"
 dir2 = os.path.abspath(os.getcwd()) + "\\covid-augmentation-python\\dataset"
-target = os.path.abspath(os.getcwd()) + "\\merged-dataset"
+base = os.path.abspath(os.path.join(os.getcwd(), Names.basePath))
+target = os.path.join(base, Names.merged)
+print(target)
 
-targetCovid = target + "\\covid"
-targetNormal = target + "\\normal"
-targetBlacklist = target + "\\blacklist"
+targetCovid = os.path.join(target, Names.covid)
+targetNormal = os.path.join(target, Names.normal)
+targetBlacklist = os.path.join(target, Names.blacklist)
 
-def try_make(path):
-    try:
-        os.mkdir(path)
-    except FileExistsError:
-        print(path + " already exists")
-
-try_make(target)
-try_make(targetCovid)
-try_make(targetNormal)
-try_make(targetBlacklist)
+Helper.make_folder(base)
+Helper.make_folder(target)
+Helper.make_folder(targetCovid)
+Helper.make_folder(targetNormal)
+Helper.make_folder(targetBlacklist)
 
 copy_and_filter_dataset(dir1, targetCovid)
 copy_dataset(dir2 + "\\covid", targetCovid)

@@ -1,0 +1,8 @@
+Notes on merging dataset
+
+	Different image size
+		White balancing smoothing
+		Duplicating images with contrast variation (Dataset augmentation?)
+			Doesn't remove linear assumption
+	Image resizing
+		Shifted frame? Random many times for dataset augmentation as well
