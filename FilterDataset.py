@@ -1,6 +1,7 @@
 '''
-    This script takes files from the merged-dataset folder
-    and sets their means to the 
+    This script takes files from the two datasets and
+    puts the relavant files (covid-19 or normal) into the
+    merged-dataset folder
 '''
 
 import os

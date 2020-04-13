@@ -1,4 +1,8 @@
 
+'''
+	One-stop config file for folder names
+'''
+
 basePath = "datasets"
 
 normal = "normal"

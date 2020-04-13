@@ -6,14 +6,41 @@ import matplotlib.pyplot as plt
 import random
 import math
 
+'''
+    Performs
+        contrast 
+        rotation 
+        cropping (TODO)
+    augmentation on the downsampled dataset
+'''
+
+
 ### Config
 
 # Only runs for a few images
 TESTING_MODE = False
 
+# Debugging displays some images
 SHOW_RANDOM_IMAGES = True
+# True: Randomize gamma change within range
+# False: Uses equally divided gamma changes
 DO_GAMMA_RANDOM = True
+# True: Randomize rotation within range
+# False: Uses equally divided rotation changes 
 DO_ROTATION_RANDOM = True
+
+# Multiplier for each augmentation step
+# Should be odd if not random so we maintain
+# the 0 angle and 1 gamma (maybe?)
+NUM_GAMMA_AUGMENT = 5
+NUM_ROTATION_AUGMENT = 5
+
+# Gamma multiplier between 1/MAX_GAMMA_MULT and
+# MAX_GAMMA MULT. ex (1/4, 1/2, 1, 2, 4)
+MAX_GAMMA_MULT = 4
+# Angle changes ex. (-15, -7.5, 0, 7.5, 15)
+MAX_ANGLE = 15
+
 
 # Generates list 1/3, 1/2, 1/1, 2/1, 3/1, etc.
 def generate_gamma_set(num, maxMult):
@@ -29,15 +56,10 @@ def generate_rotation_set(num, maxMult):
     lst = range(-sideCount, sideCount + 1)
     return [i / sideCount * maxMult for i in lst]
 
-# Must be odd (so we have 0 gamma change)
-NUM_GAMMA_AUGMENT = 5
-MAX_GAMMA_MULT = 4
+
 GAMMA_RANGE = (1.0 / MAX_GAMMA_MULT, MAX_GAMMA_MULT)
 GAMMA_SET = generate_gamma_set(NUM_GAMMA_AUGMENT, MAX_GAMMA_MULT)
 
-# Must be odd (so we have rotation 0)
-NUM_ROTATION_AUGMENT = 5
-MAX_ANGLE = 15
 ROTATION_RANGE = (-MAX_ANGLE, MAX_ANGLE)
 ROTATION_SET = generate_rotation_set(NUM_ROTATION_AUGMENT, MAX_ANGLE)
 

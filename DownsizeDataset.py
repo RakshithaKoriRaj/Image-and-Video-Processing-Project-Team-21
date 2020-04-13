@@ -4,6 +4,11 @@ import Names
 import os
 import numpy as np
 
+'''
+	Takes all files in the merged dataset folder and
+	turns them all into the DOWNSAMPLE_SIZE size
+'''
+
 DOWNSAMPLE_SIZE = (128, 128)
 
 mergedDataset = os.path.join(os.getcwd(), Names.basePath, Names.merged)
