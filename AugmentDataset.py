@@ -1,7 +1,7 @@
 import os
 import Helper
 import Names
-from skimage import io, exposure, transform
+from skimage import io, exposure, transform, img_as_ubyte
 import matplotlib.pyplot as plt
 import random
 import math
@@ -20,7 +20,7 @@ import Config
 ### Config
 
 # Only runs for a few images
-TESTING_MODE = False
+TESTING_MODE = True
 TEST_MODE_NUM = 12
 
 # Debugging displays some images
@@ -147,7 +147,7 @@ def augment_dataset(name):
             lambda : random.uniform(ROTATION_RANGE[0], ROTATION_RANGE[1]),
             lambda i : ROTATION_SET[i],
             "rotation",
-            lambda image, rotation : transform.rotate(image, rotation, mode='nearest'))
+            lambda image, rotation : transform.rotate(image, rotation, mode='constant'))
 
     def augment_cropping(images):
         def crop(image, corner):
@@ -179,7 +179,7 @@ def augment_dataset(name):
         print("Saving images to {}".format(path))
         for name, image in images.items():
             fullPath = os.path.join(path, "{}.jpg".format(name))
-            io.imsave(fullPath, image)
+            io.imsave(fullPath,img_as_ubyte(image))
 
     images = time_function(load_dataset, name, "Load dataset")
     print("{} initial images".format(len(images)))

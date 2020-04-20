@@ -4,6 +4,7 @@ import Names
 import os
 import numpy as np
 import Config
+import Helper
 
 '''
 	Takes all files in the merged dataset folder and
@@ -13,6 +14,11 @@ import Config
 
 mergedDataset = os.path.join(os.getcwd(), Names.basePath, Names.merged)
 downsampledDataset = os.path.join(os.getcwd(), Names.basePath, Names.downsampled)
+
+Helper.make_folder(downsampledDataset)
+Helper.make_folder(os.path.join(downsampledDataset,Names.covid))
+
+Helper.make_folder(os.path.join(downsampledDataset,Names.normal))
 
 def downsize_dataset(name):
 	for item in os.listdir(os.path.join(mergedDataset, name)):
@@ -29,9 +35,9 @@ def downsize_dataset(name):
 
 	    filename, file_extension = os.path.splitext(item)
 	    writePath = os.path.join(downsampledDataset, name, item)
-	    #print(writePath)
 	    if not cv2.imwrite(writePath, output):
 	    	print("Write failed")
+
 
 downsize_dataset(Names.normal)
 downsize_dataset(Names.covid)
