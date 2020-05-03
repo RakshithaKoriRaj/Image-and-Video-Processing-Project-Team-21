@@ -1,1 +1,3 @@
-datasets/
+﻿datasets/*
+models/
+training_data.npy

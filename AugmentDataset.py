@@ -20,11 +20,11 @@ import Config
 ### Config
 
 # Only runs for a few images
-TESTING_MODE = True
+TESTING_MODE = False
 TEST_MODE_NUM = 12
 
 # Debugging displays some images
-SHOW_RANDOM_IMAGES = True
+SHOW_RANDOM_IMAGES = False
 
 DO_CONTRAST = True
 DO_ROTATION = True
@@ -83,7 +83,7 @@ Helper.make_folder(normalAugmented)
 Helper.make_folder(covidAugmented)
 
 
-def augment_dataset(name):
+def augment_dataset(name, multiplier):
     def load_dataset(name):
         inPath = os.path.join(downsampledDataset, name)
         images = {}
@@ -132,7 +132,7 @@ def augment_dataset(name):
     def augment_contrast(images):
         return augment_helper(
             images,
-            Config.NUM_GAMMA_AUGMENT,
+            int(Config.NUM_GAMMA_AUGMENT * multiplier),
             Config.DO_GAMMA_RANDOM,
             lambda : random.uniform(GAMMA_RANGE[0], GAMMA_RANGE[1]),
             lambda i : GAMMA_SET[i],
@@ -142,7 +142,7 @@ def augment_dataset(name):
     def augment_rotation(images):
         return augment_helper(
             images,
-            Config.NUM_ROTATION_AUGMENT,
+            int(Config.NUM_ROTATION_AUGMENT * multiplier),
             Config.DO_ROTATION_RANDOM,
             lambda : random.uniform(ROTATION_RANGE[0], ROTATION_RANGE[1]),
             lambda i : ROTATION_SET[i],
@@ -166,7 +166,7 @@ def augment_dataset(name):
 
         return augment_helper(
             images,
-            Config.NUM_CROP_AUGMENT,
+            int(Config.NUM_CROP_AUGMENT * multiplier),
             Config.DO_CROP_RANDOM,
             lambda : (
                 random.randint(0, CROP_RANGE[0]),
@@ -183,7 +183,8 @@ def augment_dataset(name):
 
     images = time_function(load_dataset, name, "Load dataset")
     print("{} initial images".format(len(images)))
-    show_random_images(images, 4, 3)
+    if SHOW_RANDOM_IMAGES:
+        show_random_images(images, 4, 3)
 
     # Contrast augmentation
     if DO_CONTRAST:
@@ -210,6 +211,6 @@ def time_function(func, input, name):
     return result
 
 
-augment_dataset(Names.normal)
-augment_dataset(Names.covid)
+augment_dataset(Names.normal, 1.5)
+augment_dataset(Names.covid, 1)
 plt.show()
