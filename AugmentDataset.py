@@ -95,7 +95,7 @@ def augment_dataset(name, multiplier):
             fullPath = os.path.join(inPath, item)
             filename, file_extension = os.path.splitext(item)
 
-            images[filename] = io.imread(fullPath, as_grey=True)
+            images[filename] = io.imread(fullPath, as_gray=True)
         return images
 
     def show_random_images(images, width, height):
@@ -211,6 +211,6 @@ def time_function(func, input, name):
     return result
 
 
-augment_dataset(Names.normal, 1.5)
+augment_dataset(Names.normal, 1)
 augment_dataset(Names.covid, 1)
 plt.show()

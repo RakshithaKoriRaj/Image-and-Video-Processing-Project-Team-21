@@ -19,7 +19,7 @@ import Config
 
 
 REBUILD_DATA = False
-TRAINING_PER_LABEL = 4000
+TRAINING_PER_LABEL = 15300
 
 GLOBAL_IMAGE_SIZE = int(Config.DOWNSAMPLE_SIZE[0] * Config.CROP_SCALING)
 GLOBAL_MAX_POOL_SIZE = 2 
@@ -29,7 +29,7 @@ MAX_PER_LABEL = 400
 RANDOMIZE_LABELS = False
 SHOW_IMAGES = False
 
-BATCH_SIZE = 100
+BATCH_SIZE = 500
 EPOCHS = 2
 
 VAL_PCT = 0.1
@@ -102,15 +102,7 @@ class Net(nn.Module):
         x = self.fc2(x)
         return F.softmax(x, dim=1 )
 
-def run_net(count, rate, batch_size, doRandom=False):
-    net = Net()
-
-    #used for back propogation
-    optimizer = optim.Adam(net.parameters(),lr=rate)
-    loss_fuction = nn.MSELoss()
-
-    np.random.shuffle(training_data)
-
+def run_net(count, rate, batch_size, doRandom=False,allDataSet=True):
     def get_partial(data, count):
         partial = []
         numCovid = 0
@@ -136,8 +128,36 @@ def run_net(count, rate, batch_size, doRandom=False):
         print("{} normal".format(numNormal))
         print("{} total".format(len(partial)))
         return np.array(partial)
+    
+    def show_gradients():
+        fig, axes = plt.subplots(nrows=2, ncols=4, figsize=(10,5))
+        for col in range(4):
+            img = batch_X[col][0].detach().numpy()
+            grad = batch_X.grad[col][0].abs().numpy()
+            axes[0][col].axis('off')
+            axes[1][col].axis('off')
+            axes[0][col].imshow(img, cmap='gray')
+            axes[1][col].imshow(grad, cmap=plt.cm.hot)
+        fig.suptitle("{0} batch size {1}".format(count,doRandom ))
+        if SHOW_IMAGES:
+            plt.show(block=False)
+        plt.savefig("gradient_images/{0}-{1}.png".format(count, doRandom))
+    
+    
+    
+    net = Net()
 
-    partial_data = get_partial(training_data, count)
+    #used for back propogation
+    optimizer = optim.Adam(net.parameters(),lr=rate)
+    loss_fuction = nn.MSELoss()
+
+    np.random.shuffle(training_data)
+    
+    if allDataSet:
+        partial_data = training_data
+    else:
+        partial_data = get_partial(training_data, count)
+        
     '''
     image_shape = partial_data[0][0].shape
     width = image_shape[0]
@@ -165,22 +185,12 @@ def run_net(count, rate, batch_size, doRandom=False):
             net.zero_grad()
             outputs = net(batch_X)
             loss = loss_fuction(outputs,batch_y)
+            print("Loss:",loss)
             loss.backward(retain_graph=True)
             optimizer.step()
+            
 
-    def show_gradients():
-        fig, axes = plt.subplots(nrows=2, ncols=4, figsize=(10,5))
-        for col in range(4):
-            img = batch_X[col][0].detach().numpy()
-            grad = batch_X.grad[col][0].abs().numpy()
-            axes[0][col].axis('off')
-            axes[1][col].axis('off')
-            axes[0][col].imshow(img, cmap='gray')
-            axes[1][col].imshow(grad, cmap=plt.cm.hot)
-        fig.suptitle("{0} batch size {1}".format(count, ))
-        if SHOW_IMAGES:
-            plt.show(block=False)
-        plt.savefig("gradient_images/{0}-{1}.png".format(count, doRandom))
+    
 
     show_gradients()
 
@@ -219,13 +229,18 @@ def print_result(result):
              Accuracy: {2:.2f}\n\t\t\
              Loss: {3}\n\t\t\
              BatchSize: {4}".format(*result))
+    
+def complete_run():
+    accuracy, loss = run_net(0, LEARNING_RATE, BATCH_SIZE, True,True)
 
-r1 = tests(5, True)
-r2 = tests(5, False)
+complete_run()
 
-print("With correct labels for each datapoint")
-for result in r1:
-    print_result(result)
-print("With random labels")
-for result in r2:
-    print_result(result)
+# r1 = tests(5, True)
+# r2 = tests(5, False)
+
+# print("With correct labels for each datapoint")
+# for result in r1:
+#     print_result(result)
+# print("With random labels")
+# for result in r2:
+#     print_result(result)
