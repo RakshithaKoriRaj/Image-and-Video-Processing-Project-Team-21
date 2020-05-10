@@ -29,8 +29,8 @@ MAX_PER_LABEL = 400
 RANDOMIZE_LABELS = False
 SHOW_IMAGES = False
 
-BATCH_SIZE = 500
-EPOCHS = 2
+BATCH_SIZE = 300
+EPOCHS = 1
 
 VAL_PCT = 0.1
 
@@ -129,11 +129,12 @@ def run_net(count, rate, batch_size, doRandom=False,allDataSet=True):
         print("{} total".format(len(partial)))
         return np.array(partial)
     
-    def show_gradients():
+    def show_gradients(batch_X):
         fig, axes = plt.subplots(nrows=2, ncols=4, figsize=(10,5))
         for col in range(4):
-            img = batch_X[col][0].detach().numpy()
-            grad = batch_X.grad[col][0].abs().numpy()
+            grad = batch_X.grad[col][0].cpu().abs().numpy()
+            img = batch_X[col][0].cpu().detach().numpy()
+           
             axes[0][col].axis('off')
             axes[1][col].axis('off')
             axes[0][col].imshow(img, cmap='gray')
@@ -144,8 +145,13 @@ def run_net(count, rate, batch_size, doRandom=False,allDataSet=True):
         plt.savefig("gradient_images/{0}-{1}.png".format(count, doRandom))
     
     
-    
-    net = Net()
+    if torch.cuda.is_available():
+        device = torch.device("cuda:0")
+        print("running on the GPU")
+    else:
+        device = torch.device("cpu")
+        print("running on cpu")
+    net = Net().to(device)
 
     #used for back propogation
     optimizer = optim.Adam(net.parameters(),lr=rate)
@@ -180,8 +186,9 @@ def run_net(count, rate, batch_size, doRandom=False,allDataSet=True):
     for epoch in range(EPOCHS):
         for i in tqdm(range(0,len(train_X),batch_size)):
             batch_X = torch.tensor(train_X[i:i+batch_size]).float().view(-1,1,GLOBAL_IMAGE_SIZE,GLOBAL_IMAGE_SIZE)
-            batch_X.requires_grad_(True)
             batch_y = torch.Tensor(train_y[i:i+batch_size])
+            batch_X , batch_y = batch_X.to(device) , batch_y.to(device)
+            batch_X.requires_grad_(True)
             net.zero_grad()
             outputs = net(batch_X)
             loss = loss_fuction(outputs,batch_y)
@@ -191,18 +198,18 @@ def run_net(count, rate, batch_size, doRandom=False,allDataSet=True):
             
 
     
-
-    show_gradients()
-
     torch.save(net.state_dict(), "models/model-{0}-{1}.pt".format(count, doRandom))
     print("Loss:",loss)
+    show_gradients(batch_X)
+
+    
 
     correct = 0 
     total = 0 
     with torch.no_grad():
         for i in tqdm(range(len(test_X))):
-            real_class = torch.argmax(test_y[i])
-            net_out = net(test_X[i].view(-1,1,GLOBAL_IMAGE_SIZE,GLOBAL_IMAGE_SIZE))[0]
+            real_class = torch.argmax(test_y[i]).to(device)
+            net_out = net(test_X[i].view(-1,1,GLOBAL_IMAGE_SIZE,GLOBAL_IMAGE_SIZE).to(device))[0]
             predicted_class = torch.argmax(net_out)
             #print(real_class,net_out)
             if real_class == predicted_class:
@@ -231,6 +238,7 @@ def print_result(result):
              BatchSize: {4}".format(*result))
     
 def complete_run():
+    print("BATCH_SIZE:"+str(BATCH_SIZE))
     accuracy, loss = run_net(0, LEARNING_RATE, BATCH_SIZE, True,True)
 
 complete_run()
