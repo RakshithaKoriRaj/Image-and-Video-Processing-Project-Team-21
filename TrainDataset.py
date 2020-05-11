@@ -18,7 +18,7 @@ import torch
 import Config
 
 
-REBUILD_DATA = False
+REBUILD_DATA = True
 TRAINING_PER_LABEL = 15300
 
 GLOBAL_IMAGE_SIZE = int(Config.DOWNSAMPLE_SIZE[0] * Config.CROP_SCALING)
@@ -30,7 +30,7 @@ RANDOMIZE_LABELS = False
 SHOW_IMAGES = False
 
 BATCH_SIZE = 300
-EPOCHS = 1
+EPOCHS = 2
 
 VAL_PCT = 0.1
 
@@ -38,10 +38,14 @@ COVID = os.path.join(os.path.abspath(os.getcwd()),'datasets','augmented-dataset'
 NORMAL = os.path.join(os.path.abspath(os.getcwd()),'datasets','augmented-dataset','normal')
 LABELS = {COVID:0,NORMAL:1}
 
+LABELS_IDX = ['COVID','NORMAL']
+
 class CovidVsNormal():
     IMG_SIZE = GLOBAL_IMAGE_SIZE
     
     training_data = []
+    test_data = []
+    train_data = []
     covidcount = 0
     normalcount = 0 
     
@@ -63,16 +67,70 @@ class CovidVsNormal():
         np.save("training_data.npy",self.training_data)
         print("Covid:",self.covidcount)
         print("Normal:",self.normalcount)
+        
+        
+    def make_test_data(self):
+        for label in LABELS:
+            print(label)
+            
+            files = os.listdir(label+"_test")
+            np.random.shuffle(files)
+            files = files[:TRAINING_PER_LABEL]
+            for f in tqdm(files):
+                path = os.path.join(label+"_test",f)
+                img = cv2.imread(path,cv2.IMREAD_GRAYSCALE)
+                img = cv2.resize(img,(self.IMG_SIZE,self.IMG_SIZE))
+                self.test_data.append([np.array(img).astype(float),np.eye(2)[LABELS[label]]])
+                if label == COVID:
+                    self.covidcount += 1
+                elif label == NORMAL:
+                    self.normalcount +=1
+        np.save("test_data.npy",self.test_data)
+        print("Covid:",self.covidcount)
+        print("Normal:",self.normalcount)
+    
+    def make_train_data(self):
+        for label in LABELS:
+            print(label)
+            
+            files = os.listdir(label+"_train")
+            np.random.shuffle(files)
+            files = files[:TRAINING_PER_LABEL]
+            for f in tqdm(files):
+                path = os.path.join(label+"_train",f)
+                img = cv2.imread(path,cv2.IMREAD_GRAYSCALE)
+                img = cv2.resize(img,(self.IMG_SIZE,self.IMG_SIZE))
+                self.train_data.append([np.array(img).astype(float),np.eye(2)[LABELS[label]]])
+                if label == COVID:
+                    self.covidcount += 1
+                elif label == NORMAL:
+                    self.normalcount +=1
+        np.save("train_data.npy",self.train_data)
+        print("Covid:",self.covidcount)
+        print("Normal:",self.normalcount)
 
 if REBUILD_DATA:
     cvn = CovidVsNormal()
-    cvn.make_training_data()
+    #cvn.make_training_data()
+    cvn.make_test_data()
+    cvn.make_train_data()
 
-training_data = np.load("training_data.npy",allow_pickle=True)
+#training_data = np.load("training_data.npy",allow_pickle=True)
 
-print(len(training_data))
+#print(len(training_data))
 #plt.imshow(training_data[1][0],cmap="gray")
 #plt.show()
+
+train_data = np.load("train_data.npy",allow_pickle=True)
+
+print(len(train_data))
+
+
+test_data = np.load("test_data.npy",allow_pickle=True)
+
+print(len(test_data))
+
+
 
 class Net(nn.Module):
     def __init__(self):
@@ -129,20 +187,23 @@ def run_net(count, rate, batch_size, doRandom=False,allDataSet=True):
         print("{} total".format(len(partial)))
         return np.array(partial)
     
-    def show_gradients(batch_X):
+    def show_gradients(batch_X,batch_y,OUT,batch_number=0,epoch=0):
         fig, axes = plt.subplots(nrows=2, ncols=4, figsize=(10,5))
         for col in range(4):
             grad = batch_X.grad[col][0].cpu().abs().numpy()
             img = batch_X[col][0].cpu().detach().numpy()
-           
             axes[0][col].axis('off')
             axes[1][col].axis('off')
             axes[0][col].imshow(img, cmap='gray')
+            axes[0][col].set_title("Actual:{}".format(LABELS_IDX[torch.argmax(batch_y[col])]))
             axes[1][col].imshow(grad, cmap=plt.cm.hot)
-        fig.suptitle("{0} batch size {1}".format(count,doRandom ))
+            axes[1][col].set_title("Predicted:{}".format(LABELS_IDX[torch.argmax(OUT[col])]))
+            
+        fig.suptitle("{0} batch size {1} : batch_number {2} : epoch {3}".format(count,doRandom,batch_number,epoch ))
         if SHOW_IMAGES:
             plt.show(block=False)
-        plt.savefig("gradient_images/{0}-{1}.png".format(count, doRandom))
+        plt.savefig("gradient_images/{3}e{2}bn{0}bs{1}ran.png".format(count,doRandom,batch_number,epoch ))
+        plt.close()
     
     
     if torch.cuda.is_available():
@@ -157,12 +218,13 @@ def run_net(count, rate, batch_size, doRandom=False,allDataSet=True):
     optimizer = optim.Adam(net.parameters(),lr=rate)
     loss_fuction = nn.MSELoss()
 
-    np.random.shuffle(training_data)
+    np.random.shuffle(train_data)
+    np.random.shuffle(test_data)
     
-    if allDataSet:
-        partial_data = training_data
-    else:
-        partial_data = get_partial(training_data, count)
+#    if allDataSet:
+#        partial_data = training_data
+#    else:
+#        partial_data = get_partial(training_data, count)
         
     '''
     image_shape = partial_data[0][0].shape
@@ -170,18 +232,23 @@ def run_net(count, rate, batch_size, doRandom=False,allDataSet=True):
     height = image_shape[1]
     '''
 
-    X = [i[0]/255.0 for i in partial_data]
-    y = [i[1] for i in partial_data]
+#    X = [i[0]/255.0 for i in partial_data]
+#    y = [i[1] for i in partial_data]
+    X_train = [i[0]/255.0 for i in train_data]
+    y_train = [i[1] for i in train_data]
 
-    val_size = int(len(X)*VAL_PCT)
-    print("Val size:",val_size)
+    X_test = [i[0]/255.0 for i in test_data]
+    y_test = [i[1] for i in test_data]
 
-    train_X = X[:-val_size]
-    train_y = y[:-val_size]
-    test_X = torch.Tensor(X[-val_size:]).view(-1,GLOBAL_IMAGE_SIZE,GLOBAL_IMAGE_SIZE)
-    test_y = torch.Tensor(y[-val_size:])
+#    val_size = int(len(X)*VAL_PCT)
+#    print("Val size:",val_size)
+
+    train_X = X_train
+    train_y = y_train
+    test_X = torch.Tensor(X_test).view(-1,GLOBAL_IMAGE_SIZE,GLOBAL_IMAGE_SIZE)
+    test_y = torch.Tensor(y_test)
     print("train X length:",len(train_X))
-    print("text X length:",len(test_X)) 
+    print("test X length:",len(test_X)) 
 
     for epoch in range(EPOCHS):
         for i in tqdm(range(0,len(train_X),batch_size)):
@@ -195,12 +262,12 @@ def run_net(count, rate, batch_size, doRandom=False,allDataSet=True):
             print("Loss:",loss)
             loss.backward(retain_graph=True)
             optimizer.step()
-            
+            show_gradients(batch_X,batch_y,outputs,i/batch_size,epoch)
 
     
     torch.save(net.state_dict(), "models/model-{0}-{1}.pt".format(count, doRandom))
     print("Loss:",loss)
-    show_gradients(batch_X)
+    #show_gradients(batch_X,batch_y)
 
     
 

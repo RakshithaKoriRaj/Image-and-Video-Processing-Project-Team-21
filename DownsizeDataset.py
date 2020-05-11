@@ -5,6 +5,7 @@ import os
 import numpy as np
 import Config
 import Helper
+import shutil
 
 '''
 	Takes all files in the merged dataset folder and
@@ -19,6 +20,14 @@ Helper.make_folder(downsampledDataset)
 Helper.make_folder(os.path.join(downsampledDataset,Names.covid))
 
 Helper.make_folder(os.path.join(downsampledDataset,Names.normal))
+
+Helper.make_folder(os.path.join(downsampledDataset,Names.covid_test))
+
+Helper.make_folder(os.path.join(downsampledDataset,Names.normal_test))
+
+Helper.make_folder(os.path.join(downsampledDataset,Names.covid_train))
+
+Helper.make_folder(os.path.join(downsampledDataset,Names.normal_train))
 
 def downsize_dataset(name):
 	for item in os.listdir(os.path.join(mergedDataset, name)):
@@ -41,3 +50,25 @@ def downsize_dataset(name):
 
 downsize_dataset(Names.normal)
 downsize_dataset(Names.covid)
+
+
+def seprate_training_test(name,test,train):
+    print(name)
+    items = os.listdir(os.path.join(mergedDataset, name))
+    val_size = int(len(items)*Config.VAL_PCT)
+    print("Val size:",val_size)
+    items_train = items[:-val_size]
+    items_test = items[-val_size:]
+    for item in items_train:
+        fullPath = os.path.join(downsampledDataset, name, item)
+        shutil.copy(fullPath, os.path.join(train,item))
+    for item in items_test:
+        fullPath = os.path.join(downsampledDataset, name, item)
+        shutil.copy(fullPath, os.path.join(test,item))
+        
+seprate_training_test(Names.normal,
+                 os.path.join(downsampledDataset,Names.covid_test),
+                 os.path.join(downsampledDataset,Names.covid_train))
+seprate_training_test(Names.covid, 
+                 os.path.join(downsampledDataset,Names.normal_test),
+                 os.path.join(downsampledDataset,Names.normal_train))

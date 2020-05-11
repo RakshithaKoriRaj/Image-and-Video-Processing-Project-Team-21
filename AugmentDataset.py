@@ -83,6 +83,12 @@ Helper.make_folder(normalAugmented)
 Helper.make_folder(covidAugmented)
 
 
+Helper.make_folder(os.path.join(augmentedDataset, Names.normal_test))
+Helper.make_folder(os.path.join(augmentedDataset, Names.normal_train))
+Helper.make_folder(os.path.join(augmentedDataset, Names.covid_test))
+Helper.make_folder(os.path.join(augmentedDataset, Names.covid_train))
+
+
 def augment_dataset(name, multiplier):
     def load_dataset(name):
         inPath = os.path.join(downsampledDataset, name)
@@ -211,6 +217,10 @@ def time_function(func, input, name):
     return result
 
 
-augment_dataset(Names.normal, 1)
-augment_dataset(Names.covid, 1)
+#augment_dataset(Names.normal, 1)
+#augment_dataset(Names.covid, 1)
+augment_dataset(Names.normal_test, 1)
+augment_dataset(Names.covid_test, 1)
+augment_dataset(Names.normal_train, 1)
+augment_dataset(Names.covid_train, 1)
 plt.show()
