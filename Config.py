@@ -25,7 +25,7 @@ DO_CROP_RANDOM = True
 NUM_GAMMA_AUGMENT = 3
 NUM_ROTATION_AUGMENT = 3
 # Cropping can be whatever multiplier
-NUM_CROP_AUGMENT = 3
+NUM_CROP_AUGMENT = 2
 
 # Gamma multiplier between 1/MAX_GAMMA_MULT and
 # MAX_GAMMA MULT. ex (1/4, 1/2, 1, 2, 4)

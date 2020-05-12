@@ -16,9 +16,10 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch 
 import Config
+import time
 
 
-REBUILD_DATA = True
+REBUILD_DATA = False
 TRAINING_PER_LABEL = 15300
 
 GLOBAL_IMAGE_SIZE = int(Config.DOWNSAMPLE_SIZE[0] * Config.CROP_SCALING)
@@ -29,8 +30,8 @@ MAX_PER_LABEL = 400
 RANDOMIZE_LABELS = False
 SHOW_IMAGES = False
 
-BATCH_SIZE = 300
-EPOCHS = 2
+BATCH_SIZE = 100
+EPOCHS = 10
 
 VAL_PCT = 0.1
 
@@ -49,27 +50,8 @@ class CovidVsNormal():
     covidcount = 0
     normalcount = 0 
     
-    def make_training_data(self):
-        for label in LABELS:
-            print(label)
-            files = os.listdir(label)
-            np.random.shuffle(files)
-            files = files[:TRAINING_PER_LABEL]
-            for f in tqdm(files):
-                path = os.path.join(label,f)
-                img = cv2.imread(path,cv2.IMREAD_GRAYSCALE)
-                img = cv2.resize(img,(self.IMG_SIZE,self.IMG_SIZE))
-                self.training_data.append([np.array(img).astype(float),np.eye(2)[LABELS[label]]])
-                if label == COVID:
-                    self.covidcount += 1
-                elif label == NORMAL:
-                    self.normalcount +=1
-        np.save("training_data.npy",self.training_data)
-        print("Covid:",self.covidcount)
-        print("Normal:",self.normalcount)
-        
-        
     def make_test_data(self):
+       
         for label in LABELS:
             print(label)
             
@@ -111,15 +93,9 @@ class CovidVsNormal():
 
 if REBUILD_DATA:
     cvn = CovidVsNormal()
-    #cvn.make_training_data()
     cvn.make_test_data()
     cvn.make_train_data()
 
-#training_data = np.load("training_data.npy",allow_pickle=True)
-
-#print(len(training_data))
-#plt.imshow(training_data[1][0],cmap="gray")
-#plt.show()
 
 train_data = np.load("train_data.npy",allow_pickle=True)
 
@@ -212,36 +188,16 @@ def run_net(count, rate, batch_size, doRandom=False,allDataSet=True):
     else:
         device = torch.device("cpu")
         print("running on cpu")
-    net = Net().to(device)
-
-    #used for back propogation
-    optimizer = optim.Adam(net.parameters(),lr=rate)
-    loss_fuction = nn.MSELoss()
-
+    
     np.random.shuffle(train_data)
     np.random.shuffle(test_data)
     
-#    if allDataSet:
-#        partial_data = training_data
-#    else:
-#        partial_data = get_partial(training_data, count)
-        
-    '''
-    image_shape = partial_data[0][0].shape
-    width = image_shape[0]
-    height = image_shape[1]
-    '''
-
-#    X = [i[0]/255.0 for i in partial_data]
-#    y = [i[1] for i in partial_data]
     X_train = [i[0]/255.0 for i in train_data]
     y_train = [i[1] for i in train_data]
 
     X_test = [i[0]/255.0 for i in test_data]
     y_test = [i[1] for i in test_data]
 
-#    val_size = int(len(X)*VAL_PCT)
-#    print("Val size:",val_size)
 
     train_X = X_train
     train_y = y_train
@@ -249,66 +205,121 @@ def run_net(count, rate, batch_size, doRandom=False,allDataSet=True):
     test_y = torch.Tensor(y_test)
     print("train X length:",len(train_X))
     print("test X length:",len(test_X)) 
-
-    for epoch in range(EPOCHS):
-        for i in tqdm(range(0,len(train_X),batch_size)):
-            batch_X = torch.tensor(train_X[i:i+batch_size]).float().view(-1,1,GLOBAL_IMAGE_SIZE,GLOBAL_IMAGE_SIZE)
-            batch_y = torch.Tensor(train_y[i:i+batch_size])
-            batch_X , batch_y = batch_X.to(device) , batch_y.to(device)
-            batch_X.requires_grad_(True)
+    
+    def fwd_pass(X,y,train = False):
+        if train:
             net.zero_grad()
-            outputs = net(batch_X)
-            loss = loss_fuction(outputs,batch_y)
-            print("Loss:",loss)
+        outputs = net(X)
+        matches = [torch.argmax(i)==torch.argmax(j) for i,j in zip(outputs,y)]
+        acc = matches.count(True)/ len(matches)
+        loss = loss_fuction(outputs,y)
+        if train:
             loss.backward(retain_graph=True)
             optimizer.step()
-            show_gradients(batch_X,batch_y,outputs,i/batch_size,epoch)
+        return acc , loss , outputs
+            
+    def test(size=16):
+        random_start = np.random.randint(len(test_y)-size)
+        X , y = test_X[random_start:random_start+size] , test_y[random_start:random_start+size]
+        with torch.no_grad():
+            val_acc, val_loss,_ = fwd_pass(X.float().view(-1,1,GLOBAL_IMAGE_SIZE,GLOBAL_IMAGE_SIZE).to(device),y.to(device))
+        return val_acc, val_loss
+    
+    #val_acc , val_loss = test(30)
+    #print(val_acc , val_loss)
+    
+    
+    MODEL_NAME = f"model-E{EPOCHS}-B{batch_size}-{int(time.time())}"
+    print(MODEL_NAME)
+    net = Net().to(device)
+
+    #used for back propogation
+    optimizer = optim.Adam(net.parameters(),lr=rate)
+    loss_fuction = nn.MSELoss()
 
     
-    torch.save(net.state_dict(), "models/model-{0}-{1}.pt".format(count, doRandom))
-    print("Loss:",loss)
+    def train():
+        with open("model.log","a") as f:
+            for epoch in range(EPOCHS):
+                for i in tqdm(range(0,len(train_X),batch_size)):
+                    batch_X = torch.tensor(train_X[i:i+batch_size]).float().view(-1,1,GLOBAL_IMAGE_SIZE,GLOBAL_IMAGE_SIZE)
+                    batch_y = torch.Tensor(train_y[i:i+batch_size])
+                    batch_X , batch_y = batch_X.to(device) , batch_y.to(device)
+                    batch_X.requires_grad_(True)
+                    acc , loss, outputs = fwd_pass(batch_X,batch_y,train = True)
+                    val_acc , val_loss = test(20)
+                    f.write(f"{MODEL_NAME},{round(time.time(),3)},{round(float(acc),5)},{round(float(loss),5)},{round(float(val_acc),5)},{round(float(val_loss),5)}\n")
+                    if (i/batch_size)%5==0:
+                        show_gradients(batch_X,batch_y,outputs,i/batch_size,epoch)
+            show_gradients(batch_X,batch_y,outputs,i/batch_size,epoch)
+        return acc , loss
+    
+    
+    return train()
+    
+    
+    """  
+    
+    def train(net):
+        for epoch in range(EPOCHS):
+            for i in tqdm(range(0,len(train_X),batch_size)):
+                batch_X = torch.tensor(train_X[i:i+batch_size]).float().view(-1,1,GLOBAL_IMAGE_SIZE,GLOBAL_IMAGE_SIZE)
+                batch_y = torch.Tensor(train_y[i:i+batch_size])
+                batch_X , batch_y = batch_X.to(device) , batch_y.to(device)
+                batch_X.requires_grad_(True)
+                net.zero_grad()
+                outputs = net(batch_X)
+                
+                matches = [torch.argmax(i)==torch.argmax(j) for i,j in zip(outputs,batch_y)]
+                in_sample_acc = matches.count(True)/ len(outputs)
+                
+                loss = loss_fuction(outputs,batch_y)
+                print("Loss:",loss)
+                print("in_sample_acc",in_sample_acc)
+                
+                loss.backward(retain_graph=True)
+                optimizer.step()
+                show_gradients(batch_X,batch_y,outputs,i/batch_size,epoch)
+        torch.save(net.state_dict(), "models/model-{0}-{1}.pt".format(count, doRandom))
+        print("Loss:",loss)
+        return loss
     #show_gradients(batch_X,batch_y)
 
     
+    def loss(net):
+        correct = 0 
+        total = 0 
+        with torch.no_grad():
+            for i in tqdm(range(len(test_X))):
+                real_class = torch.argmax(test_y[i]).to(device)
+                net_out = net(test_X[i].view(-1,1,GLOBAL_IMAGE_SIZE,GLOBAL_IMAGE_SIZE).to(device))[0]
+                predicted_class = torch.argmax(net_out)
+                #print(real_class,net_out)
+                if real_class == predicted_class:
+                    correct +=1
+                total+=1
+                    
+        accuracy = round(correct/total,3)
+        print("Accuracy:",accuracy)
+        return accuracy
+    
+    train(net)
+    loss(net)
+    """    
+    
 
-    correct = 0 
-    total = 0 
-    with torch.no_grad():
-        for i in tqdm(range(len(test_X))):
-            real_class = torch.argmax(test_y[i]).to(device)
-            net_out = net(test_X[i].view(-1,1,GLOBAL_IMAGE_SIZE,GLOBAL_IMAGE_SIZE).to(device))[0]
-            predicted_class = torch.argmax(net_out)
-            #print(real_class,net_out)
-            if real_class == predicted_class:
-                correct +=1
-            total+=1
 
-    accuracy = round(correct/total,3)
-    print("Accuracy:",accuracy)
-    return accuracy, loss
-
-def tests(num, doRandom):
-    counts = [(2 ** x) for x in range(num)]
-    pairs = []
-    for count in counts:
-        samples = count * 100
-        batch_size = int(samples / 10)
-        accuracy, loss = run_net(samples, LEARNING_RATE, batch_size, doRandom)
-        pairs.append([samples, LEARNING_RATE, accuracy, loss, batch_size])
-    return pairs
-
-def print_result(result):
-    print("\tSamples: {0}\n\t\t\
-             Learning rate: {1}\n\t\t\
-             Accuracy: {2:.2f}\n\t\t\
-             Loss: {3}\n\t\t\
-             BatchSize: {4}".format(*result))
     
 def complete_run():
     print("BATCH_SIZE:"+str(BATCH_SIZE))
     accuracy, loss = run_net(0, LEARNING_RATE, BATCH_SIZE, True,True)
 
+print("Timing {}".format(complete_run))
+start = time.time()
 complete_run()
+end = time.time()
+print("{0} took {1:.2f} seconds".format('complete', end - start))
+
 
 # r1 = tests(5, True)
 # r2 = tests(5, False)
