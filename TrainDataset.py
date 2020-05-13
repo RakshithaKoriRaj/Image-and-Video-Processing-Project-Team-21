@@ -188,15 +188,26 @@ def run_net(count, rate, batch_size, doRandom=False,allDataSet=True):
     else:
         device = torch.device("cpu")
         print("running on cpu")
-    
+
+    def randomize_labels(dataset):
+        covidLabel = np.eye(2)[LABELS[COVID]]
+        normalLabel = np.eye(2)[LABELS[NORMAL]]
+        return [[covidLabel, normalLabel][np.random.randint(2)] for data in dataset]
+
     np.random.shuffle(train_data)
     np.random.shuffle(test_data)
     
     X_train = [i[0]/255.0 for i in train_data]
-    y_train = [i[1] for i in train_data]
+    if doRandom:
+        y_train = randomize_labels(train_data)
+    else:
+        y_train = [i[1] for i in train_data]
 
     X_test = [i[0]/255.0 for i in test_data]
-    y_test = [i[1] for i in test_data]
+    if doRandom:
+        y_test = randomize_labels(test_data)
+    else:
+        y_test = [i[1] for i in test_data]
 
 
     train_X = X_train
@@ -228,8 +239,10 @@ def run_net(count, rate, batch_size, doRandom=False,allDataSet=True):
     #val_acc , val_loss = test(30)
     #print(val_acc , val_loss)
     
-    
-    MODEL_NAME = f"model-E{EPOCHS}-B{batch_size}-{int(time.time())}"
+    # f string formatting doesn't work in python <= 3.5
+    # I don't want to risk a reinstall at this point
+    MODEL_NAME = "model-E{0}-B{1}-{2}".format(EPOCHS, batch_size, int(time.time()))
+    # MODEL_NAME = f"model-E{EPOCHS}-B{batch_size}-{int(time.time())}"
     print(MODEL_NAME)
     net = Net().to(device)
 
@@ -248,7 +261,15 @@ def run_net(count, rate, batch_size, doRandom=False,allDataSet=True):
                     batch_X.requires_grad_(True)
                     acc , loss, outputs = fwd_pass(batch_X,batch_y,train = True)
                     val_acc , val_loss = test(20)
-                    f.write(f"{MODEL_NAME},{round(time.time(),3)},{round(float(acc),5)},{round(float(loss),5)},{round(float(val_acc),5)},{round(float(val_loss),5)}\n")
+                    name = "{0},{1},{2},{3},{4},{5}\n".format(
+                        MODEL_NAME,
+                        round(time.time(),3),
+                        round(float(acc),5),
+                        round(float(loss),5),
+                        round(float(val_acc),5),
+                        round(float(val_loss),5))
+                    #name = f"{MODEL_NAME},{round(time.time(),3)},{round(float(acc),5)},{round(float(loss),5)},{round(float(val_acc),5)},{round(float(val_loss),5)}\n"
+                    f.write(name)
                     if (i/batch_size)%5==0:
                         show_gradients(batch_X,batch_y,outputs,i/batch_size,epoch)
             show_gradients(batch_X,batch_y,outputs,i/batch_size,epoch)
@@ -312,7 +333,7 @@ def run_net(count, rate, batch_size, doRandom=False,allDataSet=True):
     
 def complete_run():
     print("BATCH_SIZE:"+str(BATCH_SIZE))
-    accuracy, loss = run_net(0, LEARNING_RATE, BATCH_SIZE, True,True)
+    accuracy, loss = run_net(0, LEARNING_RATE, BATCH_SIZE, False, True)
 
 print("Timing {}".format(complete_run))
 start = time.time()
