@@ -44,12 +44,13 @@ BLACKLIST_FILE_NAMES = [
         "right-upper-lobe-pneumonia-9-L.jpg",
         ] 
 
-def copy_and_filter_dataset(src, target):
+def copy_and_filter_dataset(src, targetCovid):
     for item in os.listdir(src):
         s = os.path.join(src, item)
         #name = item.lower()
         if item not in BLACKLIST_FILE_NAMES and ("covid" in item.lower() or "corona" in item.lower()):
-            shutil.copy(s, os.path.join(target,item))
+            shutil.copy(s, os.path.join(targetCovid,item))
+            
 
 def copy_dataset(src, target):
     for item in os.listdir(src):
@@ -84,7 +85,9 @@ print("target-->"+target)
 targetCovid = os.path.join(target, Names.covid)
 targetNormal = os.path.join(target, Names.normal)
 targetBlacklist = os.path.join(target, Names.blacklist)
-
+print("targetCovid-->"+targetCovid)
+print("targetNormal-->"+targetNormal)
+print("targetBlacklist-->"+targetBlacklist)
 Helper.make_folder(base)
 Helper.make_folder(target)
 Helper.make_folder(targetCovid)
