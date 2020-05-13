@@ -3,9 +3,6 @@ from matplotlib import style
 
 style.use("ggplot")
 
-model_name = "model-E10-B100-1589305974" # grab whichever model name you want here. We could also just reference the MODEL_NAME if you're in a notebook still.
-
-
 def create_acc_loss_graph(model_name):
     contents = open("model.log", "r").read().split("\n")
 
@@ -28,7 +25,7 @@ def create_acc_loss_graph(model_name):
             val_losses.append(float(val_loss))
 
 
-    fig = plt.figure()
+    fig = plt.figure(dpi=500)
 
     ax1 = plt.subplot2grid((2,1), (0,0))
     ax2 = plt.subplot2grid((2,1), (1,0), sharex=ax1)
@@ -40,6 +37,6 @@ def create_acc_loss_graph(model_name):
     ax2.plot(times,losses, label="loss")
     ax2.plot(times,val_losses, label="val_loss")
     ax2.legend(loc=2)
+    plt.savefig("{}.png".format(model_name))
     plt.show()
 
-create_acc_loss_graph(model_name)

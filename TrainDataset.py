@@ -17,9 +17,10 @@ import torch.optim as optim
 import torch 
 import Config
 import time
+import plotmodel
 
 
-REBUILD_DATA = False
+REBUILD_DATA = True
 TRAINING_PER_LABEL = 15300
 
 GLOBAL_IMAGE_SIZE = int(Config.DOWNSAMPLE_SIZE[0] * Config.CROP_SCALING)
@@ -236,13 +237,7 @@ def run_net(count, rate, batch_size, doRandom=False,allDataSet=True):
             val_acc, val_loss,_ = fwd_pass(X.float().view(-1,1,GLOBAL_IMAGE_SIZE,GLOBAL_IMAGE_SIZE).to(device),y.to(device))
         return val_acc, val_loss
     
-    #val_acc , val_loss = test(30)
-    #print(val_acc , val_loss)
-    
-    # f string formatting doesn't work in python <= 3.5
-    # I don't want to risk a reinstall at this point
-    MODEL_NAME = "model-E{0}-B{1}-{2}".format(EPOCHS, batch_size, int(time.time()))
-    # MODEL_NAME = f"model-E{EPOCHS}-B{batch_size}-{int(time.time())}"
+    MODEL_NAME = "model-E{0}-B{1}-R{2}-tr{3}-ts{4}-{5}".format(EPOCHS, batch_size, doRandom,len(train_y),len(test_y),int(time.time()))
     print(MODEL_NAME)
     net = Net().to(device)
 
@@ -268,72 +263,24 @@ def run_net(count, rate, batch_size, doRandom=False,allDataSet=True):
                         round(float(loss),5),
                         round(float(val_acc),5),
                         round(float(val_loss),5))
-                    #name = f"{MODEL_NAME},{round(time.time(),3)},{round(float(acc),5)},{round(float(loss),5)},{round(float(val_acc),5)},{round(float(val_loss),5)}\n"
                     f.write(name)
                     if (i/batch_size)%5==0:
                         show_gradients(batch_X,batch_y,outputs,i/batch_size,epoch)
             show_gradients(batch_X,batch_y,outputs,i/batch_size,epoch)
-        return acc , loss
+            torch.save(net.state_dict(), "models/{}.pt".format(MODEL_NAME))
+        return acc , loss , MODEL_NAME
     
     
     return train()
     
-    
-    """  
-    
-    def train(net):
-        for epoch in range(EPOCHS):
-            for i in tqdm(range(0,len(train_X),batch_size)):
-                batch_X = torch.tensor(train_X[i:i+batch_size]).float().view(-1,1,GLOBAL_IMAGE_SIZE,GLOBAL_IMAGE_SIZE)
-                batch_y = torch.Tensor(train_y[i:i+batch_size])
-                batch_X , batch_y = batch_X.to(device) , batch_y.to(device)
-                batch_X.requires_grad_(True)
-                net.zero_grad()
-                outputs = net(batch_X)
-                
-                matches = [torch.argmax(i)==torch.argmax(j) for i,j in zip(outputs,batch_y)]
-                in_sample_acc = matches.count(True)/ len(outputs)
-                
-                loss = loss_fuction(outputs,batch_y)
-                print("Loss:",loss)
-                print("in_sample_acc",in_sample_acc)
-                
-                loss.backward(retain_graph=True)
-                optimizer.step()
-                show_gradients(batch_X,batch_y,outputs,i/batch_size,epoch)
-        torch.save(net.state_dict(), "models/model-{0}-{1}.pt".format(count, doRandom))
-        print("Loss:",loss)
-        return loss
-    #show_gradients(batch_X,batch_y)
-
-    
-    def loss(net):
-        correct = 0 
-        total = 0 
-        with torch.no_grad():
-            for i in tqdm(range(len(test_X))):
-                real_class = torch.argmax(test_y[i]).to(device)
-                net_out = net(test_X[i].view(-1,1,GLOBAL_IMAGE_SIZE,GLOBAL_IMAGE_SIZE).to(device))[0]
-                predicted_class = torch.argmax(net_out)
-                #print(real_class,net_out)
-                if real_class == predicted_class:
-                    correct +=1
-                total+=1
-                    
-        accuracy = round(correct/total,3)
-        print("Accuracy:",accuracy)
-        return accuracy
-    
-    train(net)
-    loss(net)
-    """    
-    
+        
 
 
     
 def complete_run():
     print("BATCH_SIZE:"+str(BATCH_SIZE))
-    accuracy, loss = run_net(0, LEARNING_RATE, BATCH_SIZE, False, True)
+    accuracy, loss,model_name = run_net(0, LEARNING_RATE, BATCH_SIZE, False, True)
+    plotmodel.create_acc_loss_graph(model_name)
 
 print("Timing {}".format(complete_run))
 start = time.time()
@@ -342,12 +289,4 @@ end = time.time()
 print("{0} took {1:.2f} seconds".format('complete', end - start))
 
 
-# r1 = tests(5, True)
-# r2 = tests(5, False)
 
-# print("With correct labels for each datapoint")
-# for result in r1:
-#     print_result(result)
-# print("With random labels")
-# for result in r2:
-#     print_result(result)
