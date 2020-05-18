@@ -48,6 +48,9 @@ def generate_rotation_set():
     return [i / sideCount * Config.MAX_ANGLE for i in lst]
 
 def generate_crop_set():
+
+    CROP_RANGE = (Config.DOWNSAMPLE_SIZE[0] - CROP_SIZE[0],
+              Config.DOWNSAMPLE_SIZE[1] - CROP_SIZE[1])
     def get_lst(maxVal):
         def scale(i):
             return int(math.floor(float(maxVal) * i / (Config.NUM_CROP_AUGMENT - 1)))
@@ -55,38 +58,6 @@ def generate_crop_set():
     return zip(get_lst(CROP_RANGE[0]), get_lst(CROP_RANGE[1]))
 
 
-GAMMA_RANGE = (1.0 / Config.MAX_GAMMA_MULT, Config.MAX_GAMMA_MULT)
-GAMMA_SET = generate_gamma_set()
-
-ROTATION_RANGE = (-Config.MAX_ANGLE, Config.MAX_ANGLE)
-ROTATION_SET = generate_rotation_set()
-
-CROP_SIZE = (
-    int(Config.DOWNSAMPLE_SIZE[0] * Config.CROP_SCALING),
-    int(Config.DOWNSAMPLE_SIZE[1] * Config.CROP_SCALING))
-CROP_RANGE = (Config.DOWNSAMPLE_SIZE[0] - CROP_SIZE[0],
-              Config.DOWNSAMPLE_SIZE[1] - CROP_SIZE[1])
-CROP_SET = generate_crop_set()
-
-
-''' ========== Paths and folders ============= '''
-downsampledDataset = os.path.join(os.getcwd(), Names.basePath, Names.downsampled)
-normal = os.path.join(downsampledDataset, Names.normal)
-covid = os.path.join(downsampledDataset, Names.covid)
-
-augmentedDataset = os.path.join(os.getcwd(), Names.basePath, Names.augmented)
-normalAugmented = os.path.join(augmentedDataset, Names.normal)
-covidAugmented = os.path.join(augmentedDataset, Names.covid)
-
-Helper.make_folder(augmentedDataset)
-Helper.make_folder(normalAugmented)
-Helper.make_folder(covidAugmented)
-
-
-Helper.make_folder(os.path.join(augmentedDataset, Names.normal_test))
-Helper.make_folder(os.path.join(augmentedDataset, Names.normal_train))
-Helper.make_folder(os.path.join(augmentedDataset, Names.covid_test))
-Helper.make_folder(os.path.join(augmentedDataset, Names.covid_train))
 
 
 def augment_dataset(name, multiplier):
@@ -217,10 +188,43 @@ def time_function(func, input, name):
     return result
 
 
-#augment_dataset(Names.normal, 1)
-#augment_dataset(Names.covid, 1)
-augment_dataset(Names.normal_test, 1)
-augment_dataset(Names.covid_test, 1)
-augment_dataset(Names.normal_train, 1)
-augment_dataset(Names.covid_train, 1)
-plt.show()
+
+if __name__ == "__main__":
+    GAMMA_RANGE = (1.0 / Config.MAX_GAMMA_MULT, Config.MAX_GAMMA_MULT)
+    GAMMA_SET = generate_gamma_set()
+
+    ROTATION_RANGE = (-Config.MAX_ANGLE, Config.MAX_ANGLE)
+    ROTATION_SET = generate_rotation_set()
+
+    CROP_SIZE = (
+    int(Config.DOWNSAMPLE_SIZE[0] * Config.CROP_SCALING),
+    int(Config.DOWNSAMPLE_SIZE[1] * Config.CROP_SCALING))
+    CROP_RANGE = (Config.DOWNSAMPLE_SIZE[0] - CROP_SIZE[0],
+              Config.DOWNSAMPLE_SIZE[1] - CROP_SIZE[1])
+    CROP_SET = generate_crop_set()
+
+
+    ''' ========== Paths and folders ============= '''
+    downsampledDataset = os.path.join(os.getcwd(), Names.basePath, Names.downsampled)
+    normal = os.path.join(downsampledDataset, Names.normal)
+    covid = os.path.join(downsampledDataset, Names.covid)
+
+    augmentedDataset = os.path.join(os.getcwd(), Names.basePath, Names.augmented)
+    normalAugmented = os.path.join(augmentedDataset, Names.normal)
+    covidAugmented = os.path.join(augmentedDataset, Names.covid)
+
+    Helper.make_folder(augmentedDataset)
+    #Helper.make_folder(normalAugmented)
+    #Helper.make_folder(covidAugmented)
+
+
+    Helper.make_folder(os.path.join(augmentedDataset, Names.normal_test))
+    Helper.make_folder(os.path.join(augmentedDataset, Names.normal_train))
+    Helper.make_folder(os.path.join(augmentedDataset, Names.covid_test))
+    Helper.make_folder(os.path.join(augmentedDataset, Names.covid_train))
+
+    augment_dataset(Names.normal_test, 1)
+    augment_dataset(Names.covid_test, 1)
+    augment_dataset(Names.normal_train, 1)
+    augment_dataset(Names.covid_train, 1)
+    plt.show()

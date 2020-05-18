@@ -6,6 +6,7 @@ import numpy as np
 import Config
 import Helper
 import shutil
+import random
 
 '''
 	Takes all files in the merged dataset folder and
@@ -13,24 +14,13 @@ import shutil
 '''
 
 
-mergedDataset = os.path.join(os.getcwd(), Names.basePath, Names.merged)
-downsampledDataset = os.path.join(os.getcwd(), Names.basePath, Names.downsampled)
 
-Helper.make_folder(downsampledDataset)
-Helper.make_folder(os.path.join(downsampledDataset,Names.covid))
 
-Helper.make_folder(os.path.join(downsampledDataset,Names.normal))
-
-Helper.make_folder(os.path.join(downsampledDataset,Names.covid_test))
-
-Helper.make_folder(os.path.join(downsampledDataset,Names.normal_test))
-
-Helper.make_folder(os.path.join(downsampledDataset,Names.covid_train))
-
-Helper.make_folder(os.path.join(downsampledDataset,Names.normal_train))
 
 def downsize_dataset(name):
-	for item in os.listdir(os.path.join(mergedDataset, name)):
+    mergedDataset = os.path.join(os.getcwd(), Names.basePath, Names.merged)
+    downsampledDataset = os.path.join(os.getcwd(), Names.basePath, Names.downsampled)
+    for item in os.listdir(os.path.join(mergedDataset, name)):
 	    fullPath = os.path.join(mergedDataset, name, item)
 	    filename, file_extension = os.path.splitext(fullPath)
 
@@ -48,13 +38,14 @@ def downsize_dataset(name):
 	    	print("Write failed")
 
 
-downsize_dataset(Names.normal)
-downsize_dataset(Names.covid)
 
 
 def seprate_training_test(name,test,train):
+    mergedDataset = os.path.join(os.getcwd(), Names.basePath, Names.merged)
+    downsampledDataset = os.path.join(os.getcwd(), Names.basePath, Names.downsampled)
     print(name)
     items = os.listdir(os.path.join(mergedDataset, name))
+    random.shuffle(items)
     val_size = int(len(items)*Config.VAL_PCT)
     print("Val size:",val_size)
     items_train = items[:-val_size]
@@ -65,10 +56,33 @@ def seprate_training_test(name,test,train):
     for item in items_test:
         fullPath = os.path.join(downsampledDataset, name, item)
         shutil.copy(fullPath, os.path.join(test,item))
-        
-seprate_training_test(Names.normal,
+
+
+if __name__ == "__main__":
+    
+    mergedDataset = os.path.join(os.getcwd(), Names.basePath, Names.merged)
+    downsampledDataset = os.path.join(os.getcwd(), Names.basePath, Names.downsampled)
+
+    Helper.make_folder(downsampledDataset)
+    Helper.make_folder(os.path.join(downsampledDataset,Names.covid))
+
+    Helper.make_folder(os.path.join(downsampledDataset,Names.normal))
+
+    Helper.make_folder(os.path.join(downsampledDataset,Names.covid_test))
+
+    Helper.make_folder(os.path.join(downsampledDataset,Names.normal_test))
+
+    Helper.make_folder(os.path.join(downsampledDataset,Names.covid_train))
+
+    Helper.make_folder(os.path.join(downsampledDataset,Names.normal_train))
+    
+    
+    downsize_dataset(Names.normal)
+    downsize_dataset(Names.covid)
+    
+    seprate_training_test(Names.normal,
                  os.path.join(downsampledDataset,Names.covid_test),
                  os.path.join(downsampledDataset,Names.covid_train))
-seprate_training_test(Names.covid, 
+    seprate_training_test(Names.covid, 
                  os.path.join(downsampledDataset,Names.normal_test),
                  os.path.join(downsampledDataset,Names.normal_train))

@@ -34,8 +34,6 @@ SHOW_IMAGES = False
 BATCH_SIZE = 100
 EPOCHS = 10
 
-VAL_PCT = 0.1
-
 COVID = os.path.join(os.path.abspath(os.getcwd()),'datasets','augmented-dataset','covid')
 NORMAL = os.path.join(os.path.abspath(os.getcwd()),'datasets','augmented-dataset','normal')
 LABELS = {COVID:0,NORMAL:1}
@@ -45,7 +43,7 @@ LABELS_IDX = ['COVID','NORMAL']
 class CovidVsNormal():
     IMG_SIZE = GLOBAL_IMAGE_SIZE
     
-    training_data = []
+    #training_data = []
     test_data = []
     train_data = []
     covidcount = 0
@@ -69,8 +67,8 @@ class CovidVsNormal():
                 elif label == NORMAL:
                     self.normalcount +=1
         np.save("test_data.npy",self.test_data)
-        print("Covid:",self.covidcount)
-        print("Normal:",self.normalcount)
+        print("Test Data Covid:",self.covidcount)
+        print("Test Data Normal:",self.normalcount)
     
     def make_train_data(self):
         for label in LABELS:
@@ -89,23 +87,10 @@ class CovidVsNormal():
                 elif label == NORMAL:
                     self.normalcount +=1
         np.save("train_data.npy",self.train_data)
-        print("Covid:",self.covidcount)
-        print("Normal:",self.normalcount)
-
-if REBUILD_DATA:
-    cvn = CovidVsNormal()
-    cvn.make_test_data()
-    cvn.make_train_data()
+        print("Train Data Covid:",self.covidcount)
+        print("Train Data Normal:",self.normalcount)
 
 
-train_data = np.load("train_data.npy",allow_pickle=True)
-
-print(len(train_data))
-
-
-test_data = np.load("test_data.npy",allow_pickle=True)
-
-print(len(test_data))
 
 
 
@@ -119,6 +104,7 @@ class Net(nn.Module):
         x = torch.randn(GLOBAL_IMAGE_SIZE,GLOBAL_IMAGE_SIZE).view(-1,1,GLOBAL_IMAGE_SIZE,GLOBAL_IMAGE_SIZE)
         self._to_linear = None
         self.convs(x)
+        print("LINEAR FC FIRST LAYER:{}".format(self._to_linear))
         self.fc1 = nn.Linear(self._to_linear,64)
         self.fc2 = nn.Linear(64,2)
     def convs(self, x):
@@ -132,6 +118,7 @@ class Net(nn.Module):
     
     def forward(self,x):
         x = self.convs(x)
+        # Making it linear
         x = x.view(-1,self._to_linear)
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
@@ -164,7 +151,7 @@ def run_net(count, rate, batch_size, doRandom=False,allDataSet=True):
         print("{} total".format(len(partial)))
         return np.array(partial)
     
-    def show_gradients(batch_X,batch_y,OUT,batch_number=0,epoch=0):
+    def show_gradients(batch_X,batch_y,OUT,batch_number=0,epoch=0,SHOW_IMAGES=False):
         fig, axes = plt.subplots(nrows=2, ncols=4, figsize=(10,5))
         for col in range(4):
             grad = batch_X.grad[col][0].cpu().abs().numpy()
@@ -176,7 +163,7 @@ def run_net(count, rate, batch_size, doRandom=False,allDataSet=True):
             axes[1][col].imshow(grad, cmap=plt.cm.hot)
             axes[1][col].set_title("Predicted:{}".format(LABELS_IDX[torch.argmax(OUT[col])]))
             
-        fig.suptitle("{0} batch size {1} : batch_number {2} : epoch {3}".format(count,doRandom,batch_number,epoch ))
+        fig.suptitle("batch size {1} : batch_number {2} : epoch {3}".format(count,batch_size,batch_number,epoch ))
         if SHOW_IMAGES:
             plt.show(block=False)
         plt.savefig("gradient_images/{3}e{2}bn{0}bs{1}ran.png".format(count,doRandom,batch_number,epoch ))
@@ -189,7 +176,7 @@ def run_net(count, rate, batch_size, doRandom=False,allDataSet=True):
     else:
         device = torch.device("cpu")
         print("running on cpu")
-
+    
     def randomize_labels(dataset):
         covidLabel = np.eye(2)[LABELS[COVID]]
         normalLabel = np.eye(2)[LABELS[NORMAL]]
@@ -240,7 +227,7 @@ def run_net(count, rate, batch_size, doRandom=False,allDataSet=True):
     MODEL_NAME = "model-E{0}-B{1}-R{2}-tr{3}-ts{4}-{5}".format(EPOCHS, batch_size, doRandom,len(train_y),len(test_y),int(time.time()))
     print(MODEL_NAME)
     net = Net().to(device)
-
+    print(net)
     #used for back propogation
     optimizer = optim.Adam(net.parameters(),lr=rate)
     loss_fuction = nn.MSELoss()
@@ -255,7 +242,7 @@ def run_net(count, rate, batch_size, doRandom=False,allDataSet=True):
                     batch_X , batch_y = batch_X.to(device) , batch_y.to(device)
                     batch_X.requires_grad_(True)
                     acc , loss, outputs = fwd_pass(batch_X,batch_y,train = True)
-                    val_acc , val_loss = test(20)
+                    val_acc , val_loss = test(50)
                     name = "{0},{1},{2},{3},{4},{5}\n".format(
                         MODEL_NAME,
                         round(time.time(),3),
@@ -282,11 +269,34 @@ def complete_run():
     accuracy, loss,model_name = run_net(0, LEARNING_RATE, BATCH_SIZE, False, True)
     plotmodel.create_acc_loss_graph(model_name)
 
-print("Timing {}".format(complete_run))
-start = time.time()
-complete_run()
-end = time.time()
-print("{0} took {1:.2f} seconds".format('complete', end - start))
+
+
+
+if __name__ == "__main__":
+    
+    if REBUILD_DATA:
+        print("Rebuilding Data")
+        cvn = CovidVsNormal()
+        cvn.make_test_data()
+        cvn.make_train_data()
+    
+    
+    train_data = np.load("train_data.npy",allow_pickle=True)
+
+    print("Train data length:{}".format(len(train_data)))
+
+
+    test_data = np.load("test_data.npy",allow_pickle=True)
+
+    print("Test data length:{}".format(len(test_data)))
+    
+    
+    
+    print("Start Training Timing {}".format(complete_run))
+    start = time.time()
+    complete_run()
+    end = time.time()
+    print("{0} took {1:.2f} seconds".format('Training', end - start))
 
 
 
